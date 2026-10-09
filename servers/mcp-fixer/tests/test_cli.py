@@ -50,6 +50,19 @@ class CliCase(unittest.TestCase):
 
 
 class FileModeTests(CliCase):
+    def test_empty_tool_list_file_is_valid(self):
+        for text in ("[]", '{"tools": []}'):
+            for command in ("score", "patch"):
+                with self.subTest(text=text, command=command):
+                    path = self.write("empty-tools.json", text)
+                    with patch.object(cli, "list_tools_stdio") as server:
+                        code, out, err = run(
+                            command, "--tools-json", path
+                        )
+                        self.assertEqual((code, err), (0, ""))
+                        self.assertTrue(out)
+                        server.assert_not_called()
+
     def test_a_clean_file_scores_100_as_text(self):
         code, out, err = run("score", "--tools-json", CLEAN)
         self.assertEqual((code, err), (0, ""))
