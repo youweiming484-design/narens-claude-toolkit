@@ -154,14 +154,16 @@ def emit(text):
 
 def read_tools(args, command):
     """The tool list and its source description, from --tools-json or a spawned server."""
-    if args.tools_json and command:
+    if args.tools_json is not None and command:
         raise UsageError("give either --tools-json or a server command after --, not both")
-    if not args.tools_json and not command:
+    if args.tools_json is None and not command:
         raise UsageError("give --tools-json FILE, or a server command after --")
+    if args.tools_json == "":
+        raise UsageError("--tools-json path must not be empty")
     if not math.isfinite(args.timeout) or args.timeout <= 0:
         raise UsageError("--timeout must be a finite number greater than 0")
     env = parse_env(args.env)
-    if args.tools_json:
+    if args.tools_json is not None:
         return load_tools_file(args.tools_json), dict(FILE_SOURCE)
     tools, info = list_tools_stdio(command, env, args.timeout)
     return tools, {"kind": "stdio", **info}

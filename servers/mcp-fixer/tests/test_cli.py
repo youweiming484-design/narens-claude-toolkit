@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import support
 from mcp_fixer import cli
@@ -49,6 +50,19 @@ class CliCase(unittest.TestCase):
 
 
 class FileModeTests(CliCase):
+    def test_empty_tool_list_file_is_valid(self):
+        for text in ("[]", '{"tools": []}'):
+            for command in ("score", "patch"):
+                with self.subTest(text=text, command=command):
+                    path = self.write("empty-tools.json", text)
+                    with patch.object(cli, "list_tools_stdio") as server:
+                        code, out, err = run(
+                            command, "--tools-json", path
+                        )
+                        self.assertEqual((code, err), (0, ""))
+                        self.assertTrue(out)
+                        server.assert_not_called()
+
     def test_a_clean_file_scores_100_as_text(self):
         code, out, err = run("score", "--tools-json", CLEAN)
         self.assertEqual((code, err), (0, ""))
@@ -175,6 +189,32 @@ class UsageErrorTests(CliCase):
                             ("--min-score", "nan"), ("--min-score", "inf")):
             with self.subTest((flag, value)):
                 self.assert_usage_error("score", "--tools-json", CLEAN, flag, value)
+
+    def test_empty_tools_json_without_server(self):
+        for command in ("score", "patch"):
+            with self.subTest(command=command):
+                self.assert_usage_error(
+                    command, "--tools-json", "", fragment="empty"
+                )
+
+    def test_empty_tools_json_with_server(self):
+        for command in ("score", "patch"):
+            with self.subTest(command=command):
+                with patch.object(
+                    cli,
+                    "list_tools_stdio",
+                    return_value=([], {
+                        "serverName": "demo-server",
+                        "serverVersion": "1.0",
+                        "protocolVersion": "2025-06-18",
+                    }),
+                ) as server:
+                    self.assert_usage_error(
+                        command, "--tools-json", "",
+                        "--", "demo-server",
+                        fragment="not both",
+                    )
+                    server.assert_not_called()
 
 
 class ServerModeTests(CliCase):
