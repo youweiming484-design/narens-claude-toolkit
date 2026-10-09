@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import support
 from mcp_fixer import cli
@@ -175,6 +176,32 @@ class UsageErrorTests(CliCase):
                             ("--min-score", "nan"), ("--min-score", "inf")):
             with self.subTest((flag, value)):
                 self.assert_usage_error("score", "--tools-json", CLEAN, flag, value)
+
+    def test_empty_tools_json_without_server(self):
+        for command in ("score", "patch"):
+            with self.subTest(command=command):
+                self.assert_usage_error(
+                    command, "--tools-json", "", fragment="empty"
+                )
+
+    def test_empty_tools_json_with_server(self):
+        for command in ("score", "patch"):
+            with self.subTest(command=command):
+                with patch.object(
+                    cli,
+                    "list_tools_stdio",
+                    return_value=([], {
+                        "serverName": "demo-server",
+                        "serverVersion": "1.0",
+                        "protocolVersion": "2025-06-18",
+                    }),
+                ) as server:
+                    self.assert_usage_error(
+                        command, "--tools-json", "",
+                        "--", "demo-server",
+                        fragment="not both",
+                    )
+                    server.assert_not_called()
 
 
 class ServerModeTests(CliCase):
